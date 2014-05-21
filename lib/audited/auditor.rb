@@ -262,7 +262,15 @@ module Audited
         self.audit_comment = nil
         begin
           # YAML::ENGINE.yamler = 'syck' # syck appears to have been removed in 2.1
-          run_callbacks(:audit)  { self.audits.create(add_additional_columns(attrs)) } if auditing_enabled
+          if attrs[:action] == 'destroy'
+            # AR was preventing the .create from working when the parent object was destroyed.
+            run_callbacks(:audit)  {
+              a=self.audits.build(add_additional_columns(attrs))
+              a.save(validate: false)
+            } if auditing_enabled
+          else
+            run_callbacks(:audit)  { self.audits.create(add_additional_columns(attrs)) } if auditing_enabled
+          end
         ensure
           # YAML::ENGINE.yamler = 'psych'
         end
