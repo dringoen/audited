@@ -267,9 +267,10 @@ module Audited
             run_callbacks(:audit)  {
               a=self.audits.build(add_additional_columns(attrs))
               a.save(validate: false)
+              true
             } if auditing_enabled
           else
-            run_callbacks(:audit)  { self.audits.create(add_additional_columns(attrs)) } if auditing_enabled
+            run_callbacks(:audit)  { self.audits.create(add_additional_columns(attrs)); true } if auditing_enabled
           end
         ensure
           # YAML::ENGINE.yamler = 'psych'
