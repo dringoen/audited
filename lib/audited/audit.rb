@@ -95,6 +95,11 @@ module Audited
       self.version = 0
     end
 
+    def set_audit_user
+      # self.user = Thread.current[:audited_user] if Thread.current[:audited_user]
+      nil # prevent stopping callback chains
+    end
+
     def set_request_uuid
       self.request_uuid ||= SecureRandom.uuid
     end
