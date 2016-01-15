@@ -8,10 +8,10 @@ module Audited
     module ClassMethods
       def setup_audit
         belongs_to :auditable,  :polymorphic => true
-        belongs_to :user,       :polymorphic => true
+        # belongs_to :user,       :polymorphic => true #not used at Quintess
         belongs_to :associated, :polymorphic => true
 
-        before_create :set_version_number, :set_audit_user, :set_request_uuid
+        before_create :set_version_number, :set_request_uuid #, :set_audit_user
 
         cattr_accessor :audited_class_names
         self.audited_class_names = Set.new
@@ -25,12 +25,12 @@ module Audited
       # All audits made during the block called will be recorded as made
       # by +user+. This method is hopefully threadsafe, making it ideal
       # for background operations that require audit information.
-      def as_user(user, &block)
-        Thread.current[:audited_user] = user
-        yield
-      ensure
-        Thread.current[:audited_user] = nil
-      end
+      # def as_user(user, &block)
+      #   Thread.current[:audited_user] = user
+      #   yield
+      # ensure
+      #   Thread.current[:audited_user] = nil
+      # end
 
       # @private
       def reconstruct_attributes(audits)
@@ -85,16 +85,14 @@ module Audited
 
     private
     def set_version_number
-      max = self.class.where(
-        :auditable_id => auditable_id,
-        :auditable_type => auditable_type
-      ).order(:version.desc).first.try(:version) || 0
-      self.version = max + 1
-    end
+      # max = self.class.where(
+      #   :auditable_id => auditable_id,
+      #   :auditable_type => auditable_type
+      # ).order(:version.desc).first.try(:version) || 0
+      # self.version = max + 1
 
-    def set_audit_user
-      self.user = Thread.current[:audited_user] if Thread.current[:audited_user]
-      nil # prevent stopping callback chains
+      # we'll try it without versioning first.
+      self.version = 0
     end
 
     def set_request_uuid

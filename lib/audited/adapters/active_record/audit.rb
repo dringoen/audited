@@ -39,22 +39,22 @@ module Audited
 
         # Allows user to be set to either a string or an ActiveRecord object
         # @private
-        def user_as_string=(user)
-          # reset both either way
-          self.user_as_model = self.username = nil
-          user.is_a?(::ActiveRecord::Base) ?
-            self.user_as_model = user :
-            self.username = user
-        end
-        alias_method :user_as_model=, :user=
-        alias_method :user=, :user_as_string=
+        # def user_as_string=(user)
+        #   # reset both either way
+        #   self.user_as_model = self.username = nil
+        #   user.is_a?(::ActiveRecord::Base) ?
+        #     self.user_as_model = user :
+        #     self.username = user
+        # end
+        # alias_method :user_as_model=, :user=
+        # alias_method :user=, :user_as_string=
 
         # @private
-        def user_as_string
-          self.user_as_model || self.username
-        end
-        alias_method :user_as_model, :user
-        alias_method :user, :user_as_string
+        # def user_as_string
+        #   self.user_as_model || self.username
+        # end
+        # alias_method :user_as_model, :user
+        # alias_method :user, :user_as_string
 
       private
         def set_version_number

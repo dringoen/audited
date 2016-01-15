@@ -58,7 +58,7 @@ module Audited
 
         attr_accessor :audit_comment
 
-        has_many :audits, :as => :auditable, :class_name => Audited.audit_class.name
+        has_many :audits, :as => :auditable, :class_name => Audited.audit_class.name, :validate => false, :autosave => false
         Audited.audit_class.audited_class_names << self.to_s
 
         after_create  :audit_create if !options[:on] || (options[:on] && options[:on].include?(:create))
@@ -89,6 +89,37 @@ module Audited
       # Temporarily turns off auditing while saving.
       def save_without_auditing
         without_auditing { save }
+      end
+
+      def changed_audited_attributes
+        attributes.slice(*changed_attributes.keys).except(*non_audited_columns)
+      end
+
+      # Quintess addition. AR's Dirty implementation is too weak. This eliminates nil->'' or ''->nil showing up as a change.
+      def changed_substantially?
+        changes = false
+        changed_audited_attributes.each_key{|attr_name| changes ||= !self.send(attr_name).blank? || !self.send("#{attr_name}_was").blank?}
+        changes
+      end
+
+      # Quintess addition. AR's Dirty implementation is too weak. This eliminates nil->'' or ''->nil showing up as a change.
+      # I chose to add a new method rather than monkey patch AR.
+      def has_changed? attr_name
+        # logger.debug "has_changed? #{changed_attributes.inspect} #{attr_name.inspect}" if logger.debug
+        if changed_attributes.has_key?(attr_name.to_s)
+          is = self.send attr_name
+          was = self.send("#{attr_name}_was")
+          # logger.debug "in changed_attributes. is: #{is.inspect} was: #{was.inspect}"
+          return true unless was.blank? && is.blank?
+        end
+        false
+      end
+
+      def changes_other_than(attributes)
+        attributes = [attributes] if !attributes.is_a? Array
+        substantial_changes = before_and_after_hash(changed_audited_attributes)
+        attributes.each{|a| substantial_changes.delete(a.to_s)}
+        substantial_changes
       end
 
       # Executes the block with the auditing callbacks disabled.
@@ -168,6 +199,33 @@ module Audited
 
       private
 
+      # Quintess addition
+      def add_additional_columns(attrs)
+        more_attrs = attrs.clone
+        more_attrs.merge!(Audit.uids_columns) if Audit.respond_to?(:uids_columns)
+        more_attrs.merge!(audit_columns) if self.respond_to?( :audit_columns )
+        more_attrs
+      end
+
+      def before_and_after_hash(changes, mode = :update)
+        # warn "before_and_after_hash changes #{changes.inspect} mode #{mode.inspect}"
+        h = changes.clone
+        h.keys.each do |attr_name|
+          case mode
+          when :create
+            h[attr_name] = [nil, h[attr_name]]
+          when :destroy
+            h[attr_name] = [h[attr_name], nil]
+          else
+            entry = h[attr_name]
+            if entry[0].blank? && entry[1].blank?
+              h.delete(attr_name)
+            end
+          end
+        end
+        h
+      end
+
       def audited_changes
         changed_attributes.except(*non_audited_columns).inject({}) do |changes,(attr, old_value)|
           changes[attr] = [old_value, self[attr]]
@@ -188,26 +246,35 @@ module Audited
       end
 
       def audit_create
-        write_audit(:action => 'create', :audited_changes => audited_attributes,
+        write_audit(:action => 'create', :audited_changes => before_and_after_hash(audited_attributes, :create),
                     :comment => audit_comment)
       end
 
       def audit_update
         unless (changes = audited_changes).empty? && audit_comment.blank?
-          write_audit(:action => 'update', :audited_changes => changes,
+          write_audit(:action => 'update', :audited_changes => before_and_after_hash(changes, :update),
                       :comment => audit_comment)
         end
       end
 
       def audit_destroy
-        write_audit(:action => 'destroy', :audited_changes => audited_attributes,
+        write_audit(:action => 'destroy', :audited_changes => before_and_after_hash(audited_attributes, :destroy),
                     :comment => audit_comment) unless self.new_record?
       end
 
       def write_audit(attrs)
         attrs[:associated] = self.send(audit_associated_with) unless audit_associated_with.nil?
         self.audit_comment = nil
-        run_callbacks(:audit)  { self.audits.create(attrs) } if auditing_enabled
+        if attrs[:action] == 'destroy'
+          # AR was preventing the .create from working when the parent object was destroyed.
+          run_callbacks(:audit)  {
+            a=self.audits.build(add_additional_columns(attrs))
+            a.save(validate: false)
+            true
+          } if auditing_enabled
+        else
+          run_callbacks(:audit)  { self.audits.create(add_additional_columns(attrs)); true } if auditing_enabled
+        end
       end
 
       def require_comment
