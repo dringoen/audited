@@ -15,7 +15,7 @@ module Audited
       # * <tt>request_uuid</tt>: a uuid based that allows audits from the same controller request
       # * <tt>created_at</tt>: Time that the change was performed
       #
-      # This version of the Audit model is specific to Club Holdings, to match the legacy version of the table that is in use.
+      # This version of the Audit model is specific to Club Holdings, to match the legacy version of the table that is in use. Make sure this file is kept up to date with changes in the sunshine version.
       class Audit < ::ActiveRecord::Base
       if Rails.version >= "3.2.0"
         include Audited::Audit
