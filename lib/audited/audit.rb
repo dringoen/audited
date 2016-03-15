@@ -101,7 +101,9 @@ module Audited
     end
 
     def set_request_uuid
-      self.request_uuid ||= SecureRandom.uuid
+      if self.respond_to?(:request_uuid)
+        self.request_uuid ||= SecureRandom.uuid
+      end
     end
   end
 end
