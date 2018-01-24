@@ -202,6 +202,7 @@ module Audited
       # Quintess addition
       def add_additional_columns(attrs)
         more_attrs = attrs.clone
+        more_attrs.merge!(Audited.quintess_audit_class.uids_columns) if Audited.quintess_audit_class
         more_attrs.merge!(Audit.uids_columns) if Audit.respond_to?(:uids_columns)
         more_attrs.merge!(audit_columns) if self.respond_to?( :audit_columns )
         more_attrs

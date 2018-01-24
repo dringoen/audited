@@ -3,7 +3,7 @@ require 'rails/observers/active_model/active_model'
 
 module Audited
   class << self
-    attr_accessor :ignored_attributes, :current_user_method, :audit_class
+    attr_accessor :ignored_attributes, :current_user_method, :audit_class, :quintess_audit_class
 
     def store
       Thread.current[:audited_store] ||= {}
